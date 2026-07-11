@@ -14,11 +14,21 @@ Pause/Resume and Quit.
 Neco's own code is released under **CC0** (see `LICENSE`).
 
 The cat sprites are the **public-domain oneko `neko` bitmaps**, converted from XBM
-to embedded data in `Neco/Sprites.swift`.
+to embedded data in `Neco/Sprites.swift`. The cat has a history worth keeping:
 
-- `xneko` by Masayuki Koba; `oneko` by Tatsuya Kato and others.
-- Source: <http://www.daidouji.com/oneko/> (oneko-1.2.sakura.5, `bitmaps/neko/`).
-- oneko / xneko are recognized as public domain by Debian, the FSF, and Fedora.
+- The cat was drawn by **Juan Gotoh (後藤寿庵)** for *neko DA*, a Macintosh desk
+  accessory. The design is his original.
+- **Masayuki Koba (古場正行)** turned it into the bitmaps for the X11 program
+  *xneko* (1990).
+- **Tatsuya Kato** derived *oneko* from xneko, reusing its cat bitmaps almost
+  unchanged.
+
+Gotoh, Koba, and Kato each confirmed the artwork and program are free to use,
+modify, and redistribute; oneko / xneko are treated as public domain by Debian,
+the FSF, and Fedora.
+
+- Provenance: <https://www.3bit.co.jp/~sasaki/oneko/COPYRIGHTS>.
+- Bitmap source: <http://www.daidouji.com/oneko/> (oneko-1.2.sakura.5, `bitmaps/neko/`).
 
 Not bundled on purpose: the BSD daemon bitmaps (Copyright 1988 Marshall Kirk
 McKusick) and the Sakura / Tomoyo bitmaps (Cardcaptor Sakura characters, CLAMP /
