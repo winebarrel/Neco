@@ -54,10 +54,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updateStatusImage()
 
         let menu = NSMenu()
-        let about = NSMenuItem(title: "About Neco", action: #selector(showAbout), keyEquivalent: "")
-        about.target = self
-        menu.addItem(about)
-        menu.addItem(.separator())
         let pause = NSMenuItem(title: "Pause / Resume", action: #selector(togglePause), keyEquivalent: "p")
         pause.target = self
         menu.addItem(pause)
@@ -75,11 +71,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard neko.frame != lastStatusFrame else { return }
         lastStatusFrame = neko.frame
         statusItem.button?.image = SpriteCache.menuBarImage(neko.frame)
-    }
-
-    @objc private func showAbout() {
-        NSApp.activate(ignoringOtherApps: true)
-        NSApp.orderFrontStandardAboutPanel(nil)
     }
 
     @objc private func togglePause() {
