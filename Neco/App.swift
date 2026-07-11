@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var timer: Timer?
     private var paused = false
+    private var lastStatusFrame = ""
 
     private var side: CGFloat { CGFloat(Sprites.width) * Tuning.scale }
 
@@ -47,13 +48,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.title = "🐱"
+        updateStatusImage()
+
         let menu = NSMenu()
-        menu.addItem(withTitle: "Pause / Resume", action: #selector(togglePause), keyEquivalent: "p")
+        let pause = NSMenuItem(title: "Pause / Resume", action: #selector(togglePause), keyEquivalent: "p")
+        pause.target = self
+        menu.addItem(pause)
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit Neco", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        for item in menu.items { item.target = self }
+        // Target NSApp, not self: AppDelegate does not implement terminate:, so a
+        // self target would leave the item auto-disabled (greyed out).
+        let quit = NSMenuItem(title: "Quit Neco", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        quit.target = NSApp
+        menu.addItem(quit)
         statusItem.menu = menu
+    }
+
+    /// Mirror the desktop cat's current pose in the menu bar.
+    private func updateStatusImage() {
+        guard neko.frame != lastStatusFrame else { return }
+        lastStatusFrame = neko.frame
+        statusItem.button?.image = SpriteCache.menuBarImage(neko.frame)
     }
 
     @objc private func togglePause() { paused.toggle() }
@@ -71,6 +85,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         neko.update(mouse: NSEvent.mouseLocation)
         reposition()
         view.needsDisplay = true
+        updateStatusImage()
     }
 
     private func reposition() {

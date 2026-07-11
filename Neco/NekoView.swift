@@ -38,6 +38,37 @@ enum SpriteCache {
         cache[name] = img
         return img
     }
+
+    private static var menuBarCache: [String: NSImage] = [:]
+
+    /// A monochrome silhouette (from the sprite mask) for the menu-bar item. It is
+    /// a template image, so macOS tints it for light/dark menu bars automatically.
+    static func menuBarImage(_ name: String) -> NSImage? {
+        if let img = menuBarCache[name] { return img }
+        guard let mask = Sprites.mask[name] else { return nil }
+        let w = Sprites.width, h = Sprites.height, rowBytes = w / 8
+
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: w, pixelsHigh: h,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: w * 4, bitsPerPixel: 32
+        ), let px = rep.bitmapData else { return nil }
+
+        for y in 0..<h {
+            for x in 0..<w {
+                let opaque = (mask[y * rowBytes + x / 8] >> Int(x % 8)) & 1
+                let o = (y * w + x) * 4
+                px[o] = 0; px[o + 1] = 0; px[o + 2] = 0; px[o + 3] = opaque == 1 ? 255 : 0
+            }
+        }
+
+        let img = NSImage(size: NSSize(width: 22, height: 22)) // full 32px canvas keeps the cat anchored
+        img.addRepresentation(rep)
+        img.isTemplate = true
+        img.accessibilityDescription = "Neco"
+        menuBarCache[name] = img
+        return img
+    }
 }
 
 @MainActor
