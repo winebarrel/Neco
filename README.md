@@ -6,6 +6,8 @@ mouse cursor. When it catches up it runs the original oneko idle chain (sit,
 groom at a wall, paw, scratch, yawn, then curl up to sleep), and wakes with a
 startle the moment the cursor moves.
 
+![](https://github.com/user-attachments/assets/cb183bd7-a0a9-4e2e-8dd6-93cdfd647b92)
+
 Built with AppKit. Menu-bar only (no dock icon); a 🐱 menu-bar item provides
 Pause/Resume and Quit.
 
