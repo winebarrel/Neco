@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 // Neco: an xneko / oneko-style desktop pet for macOS. A cat lives in a small
 // transparent, click-through panel and chases the mouse cursor. Sprites are the
@@ -99,14 +100,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 @main
-enum Neco {
-    @MainActor
+struct NecoApp: App {
+    // The overlay panel and status item are driven from AppDelegate; the adaptor
+    // keeps it alive. Menu-bar only via LSUIElement, so no window is needed.
     // swiftlint:disable:next unused_declaration
-    static func main() {
-        let app = NSApplication.shared
-        app.setActivationPolicy(.accessory) // menu bar only; no dock icon
-        let delegate = AppDelegate()
-        app.delegate = delegate
-        app.run()
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
+    var body: some Scene {
+        Settings {
+            EmptyView()
+        }
     }
 }
