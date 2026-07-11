@@ -49,7 +49,7 @@ final class Neko {
     }
 
     func update(mouse: NSPoint) {
-        tick &+= 1
+        tick += 1
         let dx = mouse.x - pos.x
         let dy = mouse.y - pos.y
         let dist = hypot(dx, dy)

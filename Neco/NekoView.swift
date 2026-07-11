@@ -62,7 +62,9 @@ enum SpriteCache {
             }
         }
 
-        let img = NSImage(size: NSSize(width: 22, height: 22)) // full 32px canvas keeps the cat anchored
+        // Use the whole 32px sprite canvas (not cropped) so the cat stays anchored
+        // as it animates; 18pt renders it at a normal, padded menu-bar glyph size.
+        let img = NSImage(size: NSSize(width: 18, height: 18))
         img.addRepresentation(rep)
         img.isTemplate = true
         img.accessibilityDescription = "Neco"

@@ -73,14 +73,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func togglePause() { paused.toggle() }
 
     private func startTimer() {
-        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.tick() }
-        }
+        // Target/selector Timer: it fires on the run loop it is scheduled on (main),
+        // so tick stays on the MainActor without an unchecked assumeIsolated.
+        let timer = Timer(timeInterval: 1.0 / 60.0, target: self,
+                          selector: #selector(onTick), userInfo: nil, repeats: true)
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
     }
 
-    private func tick() {
+    @objc private func onTick() {
         guard !paused else { return }
         neko.update(mouse: NSEvent.mouseLocation)
         reposition()
@@ -95,13 +96,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 @main
 enum Neco {
+    @MainActor
     static func main() {
-        MainActor.assumeIsolated {
-            let app = NSApplication.shared
-            app.setActivationPolicy(.accessory) // menu bar only; no dock icon
-            let delegate = AppDelegate()
-            app.delegate = delegate
-            app.run()
-        }
+        let app = NSApplication.shared
+        app.setActivationPolicy(.accessory) // menu bar only; no dock icon
+        let delegate = AppDelegate()
+        app.delegate = delegate
+        app.run()
     }
 }
