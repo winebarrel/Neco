@@ -7,7 +7,9 @@ enum SpriteCache {
     private static var cache: [String: NSImage] = [:]
 
     static func image(_ name: String) -> NSImage? {
-        if let img = cache[name] { return img }
+        if let img = cache[name] {
+            return img
+        }
         guard let bits = Sprites.image[name], let mask = Sprites.mask[name] else { return nil }
         let w = Sprites.width, h = Sprites.height, rowBytes = w / 8
 
@@ -17,8 +19,8 @@ enum SpriteCache {
             colorSpaceName: .deviceRGB, bytesPerRow: w * 4, bitsPerPixel: 32
         ), let px = rep.bitmapData else { return nil }
 
-        for y in 0..<h {
-            for x in 0..<w {
+        for y in 0 ..< h {
+            for x in 0 ..< w {
                 let i = y * rowBytes + x / 8
                 let b = Int(x % 8)
                 let ink = (bits[i] >> b) & 1
@@ -44,7 +46,9 @@ enum SpriteCache {
     /// A monochrome silhouette (from the sprite mask) for the menu-bar item. It is
     /// a template image, so macOS tints it for light/dark menu bars automatically.
     static func menuBarImage(_ name: String) -> NSImage? {
-        if let img = menuBarCache[name] { return img }
+        if let img = menuBarCache[name] {
+            return img
+        }
         guard let mask = Sprites.mask[name] else { return nil }
         let w = Sprites.width, h = Sprites.height, rowBytes = w / 8
 
@@ -54,8 +58,8 @@ enum SpriteCache {
             colorSpaceName: .deviceRGB, bytesPerRow: w * 4, bitsPerPixel: 32
         ), let px = rep.bitmapData else { return nil }
 
-        for y in 0..<h {
-            for x in 0..<w {
+        for y in 0 ..< h {
+            for x in 0 ..< w {
                 let opaque = (mask[y * rowBytes + x / 8] >> Int(x % 8)) & 1
                 let o = (y * w + x) * 4
                 px[o] = 0; px[o + 1] = 0; px[o + 2] = 0; px[o + 3] = opaque == 1 ? 255 : 0
@@ -76,12 +80,14 @@ enum SpriteCache {
 @MainActor
 final class NekoView: NSView {
     var neko: Neko?
-    override var isFlipped: Bool { false }
+    override var isFlipped: Bool {
+        false
+    }
 
     override func draw(_ dirtyRect: NSRect) {
         NSColor.clear.setFill()
         dirtyRect.fill(using: .copy)
-        guard let neko = neko, let img = SpriteCache.image(neko.frame) else { return }
+        guard let neko, let img = SpriteCache.image(neko.frame) else { return }
         NSGraphicsContext.current?.imageInterpolation = .none // keep hard pixel edges
         img.draw(in: bounds)
     }

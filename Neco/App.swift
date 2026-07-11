@@ -17,7 +17,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var paused = false
     private var lastStatusFrame = ""
 
-    private var side: CGFloat { CGFloat(Sprites.width) * Tuning.scale }
+    private var side: CGFloat {
+        CGFloat(Sprites.width) * Tuning.scale
+    }
 
     func applicationDidFinishLaunching(_: Notification) {
         let m = NSEvent.mouseLocation
@@ -70,7 +72,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.image = SpriteCache.menuBarImage(neko.frame)
     }
 
-    @objc private func togglePause() { paused.toggle() }
+    @objc private func togglePause() {
+        paused.toggle()
+    }
 
     private func startTimer() {
         // Target/selector Timer: it fires on the run loop it is scheduled on (main),
@@ -97,6 +101,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 @main
 enum Neco {
     @MainActor
+    // swiftlint:disable:next unused_declaration
     static func main() {
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory) // menu bar only; no dock icon
