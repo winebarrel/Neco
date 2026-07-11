@@ -1,5 +1,6 @@
 excluded:
   - Neco/Sprites.swift # generated
+  - build # xcodebuild output
 
 disabled_rules:
   - line_length
