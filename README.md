@@ -37,3 +37,7 @@ the FSF, and Fedora.
 Not bundled on purpose: the BSD daemon bitmaps (Copyright 1988 Marshall Kirk
 McKusick) and the Sakura / Tomoyo bitmaps (Cardcaptor Sakura characters, CLAMP /
 Kodansha) that ship in the same tarball.
+
+## Related links
+
+- [Neko: History of a Software Pet | Eliot Akira](https://eliotakira.com/neko/)
