@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let litter = LitterField()
     private var pawsItem: NSMenuItem!
     private var scratchItem: NSMenuItem!
+    private var wanderItem: NSMenuItem!
     private var tick = 0
 
     private var side: CGFloat {
@@ -34,6 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_: Notification) {
         let m = NSEvent.mouseLocation
         neko = Neko(pos: NSPoint(x: m.x - 120, y: m.y - 120))
+        neko.wandering = UserDefaults.standard.bool(forKey: "wandering")
 
         view = NekoView(frame: NSRect(x: 0, y: 0, width: side, height: side))
         view.neko = neko
@@ -129,10 +131,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(clear)
         menu.addItem(.separator())
 
+        wanderItem = NSMenuItem(title: "Wander", action: #selector(toggleWander), keyEquivalent: "")
+        wanderItem.target = self
+        wanderItem.state = neko.wandering ? .on : .off
+        menu.addItem(wanderItem)
+
         let pause = NSMenuItem(title: "Pause / Resume", action: #selector(togglePause), keyEquivalent: "p")
         pause.target = self
         menu.addItem(pause)
         menu.addItem(.separator())
+
+        let about = NSMenuItem(title: "About Neco", action: #selector(showAbout), keyEquivalent: "")
+        about.target = self
+        menu.addItem(about)
         // Target NSApp, not self: AppDelegate does not implement terminate:, so a
         // self target would leave the item auto-disabled (greyed out).
         let quit = NSMenuItem(title: "Quit Neco", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -167,6 +178,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func clearMess() {
         litter.clear()
         litterView.needsDisplay = true
+    }
+
+    @objc private func toggleWander() {
+        neko.wandering.toggle()
+        wanderItem.state = neko.wandering ? .on : .off
+        UserDefaults.standard.set(neko.wandering, forKey: "wandering")
+    }
+
+    @objc private func showAbout() {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.orderFrontStandardAboutPanel(nil)
     }
 
     private func startTimer() {
