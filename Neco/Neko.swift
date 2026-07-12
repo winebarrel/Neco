@@ -57,8 +57,8 @@ final class Neko {
         }
     }
 
-    /// The cat is scratching a wall (togi). Only this state happens at a screen edge,
-    /// so scratch marks stay limited to the walls.
+    /// The cat is sharpening its claws (togi): at a screen edge, or — per
+    /// Tuning.togiChance — at a random stop anywhere. Scratch marks drop in this state.
     var isClawing: Bool {
         switch motion {
         case .togi: true

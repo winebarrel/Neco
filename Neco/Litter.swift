@@ -25,7 +25,7 @@ final class LitterField {
     fileprivate private(set) var marks: [Mark] = []
     private var tick = 0
     private var prevPos: NSPoint?
-    private var lastPawPos = NSPoint.zero
+    private var lastPawPos: NSPoint? // nil until the first running frame seeds it
     private var pawSide: CGFloat = 1 // flip each print for a left/right foot
     private var lastScratch = -9999 // safely in the past; never Int.min (subtraction would overflow)
 
@@ -53,7 +53,7 @@ final class LitterField {
         var changed = marks.count != before
 
         if pawsEnabled, neko.isRunning {
-            if hypot(pos.x - lastPawPos.x, pos.y - lastPawPos.y) >= pawSpacing {
+            if let last = lastPawPos, hypot(pos.x - last.x, pos.y - last.y) >= pawSpacing {
                 let heading = prevPos.map { atan2(pos.y - $0.y, pos.x - $0.x) } ?? 0
                 // Step sideways from the path so prints alternate like real feet.
                 let off = 6 * pawSide
@@ -63,6 +63,8 @@ final class LitterField {
                 lastPawPos = pos
                 pawSide *= -1
                 changed = true
+            } else if lastPawPos == nil {
+                lastPawPos = pos // seed on the first running frame; the first step drops no print
             }
         } else {
             lastPawPos = pos // measure spacing fresh from where the next run starts
