@@ -1,4 +1,4 @@
-# Neco
+# Neco [![CI](https://github.com/winebarrel/Neco/actions/workflows/ci.yml/badge.svg)](https://github.com/winebarrel/Neco/actions/workflows/ci.yml) [![AI Generated](https://img.shields.io/badge/AI%20Generated-Claude-orange?logo=anthropic)](https://claude.ai/claude-code)
 
 An [oneko](https://ja.wikipedia.org/wiki/Oneko) / xneko-style desktop pet for
 macOS. A cat lives in a small transparent, click-through window and chases your
