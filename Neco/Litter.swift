@@ -157,39 +157,22 @@ final class LitterView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        // Clear and repaint only the disjoint sub-rects AppKit actually invalidated,
-        // not their union bounding box. When marks are scattered (a long trail, or a
-        // whole tail fading at once), the union can span most of the screen while the
-        // real changed area is tiny — using getRectsBeingDrawn keeps cost proportional
-        // to changed pixels, not to how far apart the changes are.
-        let rects = rectsBeingDrawn(fallback: dirtyRect)
+        // Clear only the invalidated patch (not the full multi-screen bounds), then
+        // repaint just the marks that overlap it. AppKit clips drawing to dirtyRect.
         NSColor.clear.setFill()
-        for r in rects {
-            r.fill(using: .copy)
-        }
-
+        dirtyRect.fill(using: .copy)
         guard let field, let ctx = NSGraphicsContext.current?.cgContext else { return }
         let radius = LitterField.markRadius
         for mark in field.marks {
             let p = NSPoint(x: mark.pos.x - originOffset.x, y: mark.pos.y - originOffset.y)
             let box = NSRect(x: p.x - radius, y: p.y - radius, width: radius * 2, height: radius * 2)
-            guard rects.contains(where: { $0.intersects(box) }) else { continue }
+            guard box.intersects(dirtyRect) else { continue }
             let a = field.alpha(of: mark)
             switch mark.kind {
             case .paw: Self.drawPaw(ctx, at: p, angle: mark.angle, alpha: a)
             case .scratch: Self.drawScratch(ctx, at: p, angle: mark.angle, alpha: a)
             }
         }
-    }
-
-    /// The individual rects AppKit is redrawing this pass (falling back to the union
-    /// dirtyRect if none are reported), so clears and hit-tests stay per-patch.
-    private func rectsBeingDrawn(fallback: NSRect) -> [NSRect] {
-        var ptr: UnsafePointer<NSRect>?
-        var count = 0
-        getRectsBeingDrawn(&ptr, count: &count)
-        guard let ptr, count > 0 else { return [fallback] }
-        return (0 ..< count).map { ptr[$0] }
     }
 
     // Base colors cached once; per-mark opacity is applied with ctx.setAlpha so no
