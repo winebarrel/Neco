@@ -18,6 +18,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var paused = false
     private var lastStatusFrame = ""
 
+    // The mess overlay: a full-screen click-through panel below the cat that draws
+    // the paw prints and scratch marks the cat leaves behind.
+    private var litterPanel: NSPanel!
+    private var litterView: LitterView!
+    private let litter = LitterField()
+    private var pawsItem: NSMenuItem!
+    private var scratchItem: NSMenuItem!
+    private var tick = 0
+
     private var side: CGFloat {
         CGFloat(Sprites.width) * Tuning.scale
     }
@@ -45,8 +54,58 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         reposition()
         panel.orderFrontRegardless()
 
+        setupLitterPanel()
         setupStatusItem()
         startTimer()
+    }
+
+    /// A full-screen, click-through overlay just below the cat, for its paw prints
+    /// and scratch marks. It spans every screen so the mess follows the cat around.
+    private func setupLitterPanel() {
+        let d = UserDefaults.standard
+        litter.pawsEnabled = d.object(forKey: "pawsEnabled") as? Bool ?? false
+        litter.scratchEnabled = d.object(forKey: "scratchEnabled") as? Bool ?? false
+
+        litterView = LitterView()
+        litterView.field = litter
+
+        litterPanel = NSPanel(
+            contentRect: screensFrame(),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        litterPanel.isOpaque = false
+        litterPanel.backgroundColor = .clear
+        litterPanel.hasShadow = false
+        // One level below the cat so the cat always walks on top of its own mess.
+        litterPanel.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue - 1)
+        litterPanel.ignoresMouseEvents = true
+        litterPanel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+        litterPanel.contentView = litterView
+        layoutLitterPanel()
+        litterPanel.orderFrontRegardless()
+
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(screensChanged),
+            name: NSApplication.didChangeScreenParametersNotification, object: nil
+        )
+    }
+
+    private func screensFrame() -> NSRect {
+        NSScreen.screens.reduce(NSRect.zero) { $0.union($1.frame) }
+    }
+
+    private func layoutLitterPanel() {
+        let frame = screensFrame()
+        litterPanel.setFrame(frame, display: false)
+        litterView.frame = NSRect(origin: .zero, size: frame.size)
+        litterView.originOffset = frame.origin
+    }
+
+    @objc private func screensChanged() {
+        layoutLitterPanel()
+        litterView.needsDisplay = true
     }
 
     private func setupStatusItem() {
@@ -54,6 +113,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updateStatusImage()
 
         let menu = NSMenu()
+
+        pawsItem = NSMenuItem(title: "Paw Prints", action: #selector(togglePaws), keyEquivalent: "")
+        pawsItem.target = self
+        pawsItem.state = litter.pawsEnabled ? .on : .off
+        menu.addItem(pawsItem)
+
+        scratchItem = NSMenuItem(title: "Scratch Marks", action: #selector(toggleScratch), keyEquivalent: "")
+        scratchItem.target = self
+        scratchItem.state = litter.scratchEnabled ? .on : .off
+        menu.addItem(scratchItem)
+
+        let clear = NSMenuItem(title: "Clear Mess", action: #selector(clearMess), keyEquivalent: "")
+        clear.target = self
+        menu.addItem(clear)
+        menu.addItem(.separator())
+
         let pause = NSMenuItem(title: "Pause / Resume", action: #selector(togglePause), keyEquivalent: "p")
         pause.target = self
         menu.addItem(pause)
@@ -77,6 +152,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         paused.toggle()
     }
 
+    @objc private func togglePaws() {
+        litter.pawsEnabled.toggle()
+        pawsItem.state = litter.pawsEnabled ? .on : .off
+        UserDefaults.standard.set(litter.pawsEnabled, forKey: "pawsEnabled")
+    }
+
+    @objc private func toggleScratch() {
+        litter.scratchEnabled.toggle()
+        scratchItem.state = litter.scratchEnabled ? .on : .off
+        UserDefaults.standard.set(litter.scratchEnabled, forKey: "scratchEnabled")
+    }
+
+    @objc private func clearMess() {
+        litter.clear()
+        litterView.needsDisplay = true
+    }
+
     private func startTimer() {
         // Target/selector Timer: it fires on the run loop it is scheduled on (main),
         // so tick stays on the MainActor without an unchecked assumeIsolated.
@@ -88,10 +180,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func onTick() {
         guard !paused else { return }
+        tick += 1
         neko.update(mouse: NSEvent.mouseLocation)
         reposition()
         view.needsDisplay = true
         updateStatusImage()
+
+        // Redraw the mess when a mark appears or vanishes; otherwise refresh at ~10fps
+        // so fading marks dim smoothly without a full-screen repaint every frame.
+        let changed = litter.update(neko: neko)
+        if changed || (!litter.isEmpty && tick % 6 == 0) {
+            litterView.needsDisplay = true
+        }
     }
 
     private func reposition() {
