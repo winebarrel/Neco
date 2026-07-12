@@ -10,7 +10,6 @@ startle the moment the cursor moves.
 
 ![](https://github.com/user-attachments/assets/0dc1e861-aa9e-4584-9619-24eab0a889e9)
 
-
 Built with AppKit. Menu-bar only (no dock icon); a 🐱 menu-bar item provides
 Pause/Resume and Quit.
 
