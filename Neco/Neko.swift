@@ -10,6 +10,7 @@ enum Tuning {
     static let stopDistance: CGFloat = 24 // "caught the cursor" threshold
     static let wakeDistance: CGFloat = 40 // cursor must move this far to wake a sleeping cat
     static let edgeMargin: CGFloat = 24 // how close to a screen edge counts as "at the wall"
+    static let togiChance = 0.5 // when not at a wall, chance of scratching claws (togi) instead of pawing (jare) on stop
 
     // Idle-chain durations, in seconds. Mirror oneko.h (there 1 tick ~= 0.125s):
     // STOP 4, JARE 10, KAKI 4, AKUBI 6, AWAKE 3, TOGI 10.
@@ -45,6 +46,24 @@ final class Neko {
 
     private var stateAge: Double {
         Double(tick - stateStart) / 60.0
+    }
+
+    /// The cat is on the move; drops paw prints behind it (see LitterField).
+    var isRunning: Bool {
+        if case .running = motion {
+            true
+        } else {
+            false
+        }
+    }
+
+    /// The cat is scratching a wall (togi). Only this state happens at a screen edge,
+    /// so scratch marks stay limited to the walls.
+    var isClawing: Bool {
+        switch motion {
+        case .togi: true
+        default: false
+        }
     }
 
     private func setState(_ m: Motion) {
@@ -119,7 +138,8 @@ final class Neko {
         }
     }
 
-    /// Leaving STOP: groom if the cat has run up against a screen edge, else paw.
+    /// Leaving STOP: groom if the cat has run up against a screen edge. Otherwise, at
+    /// random, sharpen claws (togi) facing a random way, else paw (jare).
     private func chooseAfterStop() {
         let screen = NSScreen.screens.first { $0.frame.contains(pos) } ?? NSScreen.main
         if let f = screen?.frame {
@@ -137,7 +157,12 @@ final class Neko {
                 togiDir = "d"; return setState(.togi)
             }
         }
-        setState(.jare)
+        if Double.random(in: 0 ..< 1) < Tuning.togiChance {
+            togiDir = ["u", "d", "l", "r"].randomElement() ?? "d"
+            setState(.togi)
+        } else {
+            setState(.jare)
+        }
     }
 
     /// Which sprite to show right now.
