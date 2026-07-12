@@ -23,6 +23,10 @@ enum Tuning {
 
     static let animTicks = 7 // run/idle frame swap cadence (~8fps, like the original)
     static let sleepAnimTicks = 30 // slower sleeping breath
+
+    /// Wander mode: instead of the cursor, chase a random on-screen point; once caught,
+    /// linger this long (seconds) before picking a new one and running off again.
+    static let wanderDwellRange = 0.4 ... 2.0
 }
 
 @MainActor
@@ -39,6 +43,19 @@ final class Neko {
     private var headingDy: CGFloat = 0
     private var tick = 0
     private var stateStart = 0
+
+    /// Wander mode: chase random on-screen points instead of the cursor. Turning it on
+    /// immediately picks a first destination so the cat sets off right away.
+    var wandering = false {
+        didSet {
+            guard wandering, wandering != oldValue else { return }
+            pickWanderTarget()
+        }
+    }
+
+    private var wanderTarget = NSPoint.zero
+    private var wanderDwell = 0.0 // seconds to linger at the current target before moving on
+    private var idleSince = 0 // last tick the cat was moving; the dwell timer counts from here
 
     init(pos: NSPoint) {
         self.pos = pos
@@ -71,8 +88,18 @@ final class Neko {
         stateStart = tick
     }
 
-    func update(mouse: NSPoint) {
+    /// The cat is heading somewhere: running toward a target, or waking to do so.
+    private var isMoving: Bool {
+        switch motion {
+        case .running, .awake: true
+        default: false
+        }
+    }
+
+    func update(mouse rawMouse: NSPoint) {
         tick += 1
+        let mouse = wandering ? advanceWander() : rawMouse
+
         let dx = mouse.x - pos.x
         let dy = mouse.y - pos.y
         let dist = hypot(dx, dy)
@@ -163,6 +190,32 @@ final class Neko {
         } else {
             setState(.jare)
         }
+    }
+
+    /// Wander mode's stand-in for the cursor. The cat keeps moving until it settles,
+    /// lingers for wanderDwell, then a fresh destination pulls the target away and wakes
+    /// it — the same way real cursor movement does. Returns the current target point.
+    private func advanceWander() -> NSPoint {
+        if isMoving {
+            idleSince = tick
+        } else if Double(tick - idleSince) / 60.0 >= wanderDwell {
+            pickWanderTarget()
+        }
+        return wanderTarget
+    }
+
+    /// Pick a fresh random destination for wander mode: a random point (kept off the
+    /// very edges) on a randomly chosen screen. Reset the dwell clock so the cat runs
+    /// off before it is eligible to settle again.
+    private func pickWanderTarget() {
+        let frame = (NSScreen.screens.randomElement() ?? NSScreen.main)?.frame ?? .zero
+        let m = Tuning.edgeMargin
+        wanderTarget = NSPoint(
+            x: .random(in: (frame.minX + m) ... max(frame.minX + m, frame.maxX - m)),
+            y: .random(in: (frame.minY + m) ... max(frame.minY + m, frame.maxY - m))
+        )
+        wanderDwell = .random(in: Tuning.wanderDwellRange)
+        idleSince = tick
     }
 
     /// Which sprite to show right now.
