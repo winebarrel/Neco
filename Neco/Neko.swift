@@ -55,7 +55,7 @@ final class Neko {
 
     private var wanderTarget = NSPoint.zero
     private var wanderDwell = 0.0 // seconds to linger at the current target before moving on
-    private var idleSince = 0 // tick the cat last stopped moving (for the dwell timer)
+    private var idleSince = 0 // last tick the cat was moving; the dwell timer counts from here
 
     init(pos: NSPoint) {
         self.pos = pos
