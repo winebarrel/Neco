@@ -186,11 +186,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         view.needsDisplay = true
         updateStatusImage()
 
-        // Redraw the mess when a mark appears or vanishes; otherwise refresh at ~10fps
-        // so fading marks dim smoothly without a full-screen repaint every frame.
-        let changed = litter.update(neko: neko)
-        if changed || (!litter.isEmpty && tick % 6 == 0) {
-            litterView.needsDisplay = true
+        // Invalidate only the patches around marks that appeared or vanished; refresh
+        // fading marks at ~10fps. Cost scales with changed pixels, not screen area.
+        for rect in litter.update(neko: neko) {
+            litterView.invalidateGlobal(rect)
+        }
+        if tick % 6 == 0 {
+            for rect in litter.fadingRects() {
+                litterView.invalidateGlobal(rect)
+            }
         }
     }
 

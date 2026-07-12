@@ -15,12 +15,17 @@ private struct Mark {
 }
 
 /// Accumulates and ages the cat's marks. `update(neko:)` is called once per 60fps
-/// tick; it emits new marks from the cat's motion, culls faded ones, and reports
-/// whether the set changed so the view only redraws when it needs to.
+/// tick; it emits new marks from the cat's motion and culls faded ones, returning the
+/// global-coordinate rects that changed so the view can repaint just those, not the
+/// whole multi-screen overlay.
 @MainActor
 final class LitterField {
     var pawsEnabled = false
     var scratchEnabled = false
+
+    /// Half-size of a mark's bounding box, used for partial invalidation and to skip
+    /// off-screen marks while drawing. Generous enough to cover any rotated paw/scratch.
+    static let markRadius: CGFloat = 16
 
     fileprivate private(set) var marks: [Mark] = []
     private var tick = 0
@@ -40,17 +45,25 @@ final class LitterField {
         kind == .paw ? pawLife : scratchLife
     }
 
-    /// Advance one tick. Returns true if a mark was added or culled (a new/removed
-    /// mark needs an immediate redraw; ongoing fade is redrawn on a throttle).
-    @discardableResult
-    func update(neko: Neko) -> Bool {
+    private func rect(for mark: Mark) -> NSRect {
+        let r = Self.markRadius
+        return NSRect(x: mark.pos.x - r, y: mark.pos.y - r, width: r * 2, height: r * 2)
+    }
+
+    /// Advance one tick. Returns the global rects of marks that appeared or vanished
+    /// this tick (added, culled by age, or evicted by the cap) — the caller invalidates
+    /// just these. Ongoing fade is refreshed separately via `fadingRects()`.
+    func update(neko: Neko) -> [NSRect] {
         tick += 1
         let pos = neko.pos
         defer { prevPos = pos }
 
-        let before = marks.count
-        marks.removeAll { tick - $0.birth > life(of: $0.kind) }
-        var changed = marks.count != before
+        var dirty: [NSRect] = []
+        marks.removeAll { mark in
+            guard tick - mark.birth > life(of: mark.kind) else { return false }
+            dirty.append(rect(for: mark))
+            return true
+        }
 
         if pawsEnabled, neko.isRunning {
             if let last = lastPawPos, hypot(pos.x - last.x, pos.y - last.y) >= pawSpacing {
@@ -59,10 +72,9 @@ final class LitterField {
                 let off = 6 * pawSide
                 let p = NSPoint(x: pos.x + cos(heading + .pi / 2) * off,
                                 y: pos.y + sin(heading + .pi / 2) * off)
-                add(Mark(kind: .paw, pos: p, angle: heading, birth: tick))
+                dirty += add(Mark(kind: .paw, pos: p, angle: heading, birth: tick))
                 lastPawPos = pos
                 pawSide *= -1
-                changed = true
             } else if lastPawPos == nil {
                 lastPawPos = pos // seed on the first running frame; the first step drops no print
             }
@@ -75,23 +87,33 @@ final class LitterField {
             let jitter = CGFloat((tick * 37) % 18 - 9)
             let tilt = CGFloat((tick * 53) % 50 - 25) * .pi / 180
             let p = NSPoint(x: pos.x + jitter, y: pos.y + jitter * 0.5)
-            add(Mark(kind: .scratch, pos: p, angle: tilt, birth: tick))
+            dirty += add(Mark(kind: .scratch, pos: p, angle: tilt, birth: tick))
             lastScratch = tick
-            changed = true
         }
 
-        return changed
+        return dirty
     }
 
-    private func add(_ mark: Mark) {
+    /// Append a mark and return the rects to invalidate: the new mark's, plus any
+    /// evicted when the cap is exceeded (so their pixels get cleared too).
+    private func add(_ mark: Mark) -> [NSRect] {
         marks.append(mark)
+        var dirty = [rect(for: mark)]
         if marks.count > maxMarks {
-            marks.removeFirst(marks.count - maxMarks)
+            let overflow = marks.count - maxMarks
+            dirty += marks.prefix(overflow).map { rect(for: $0) }
+            marks.removeFirst(overflow)
         }
+        return dirty
     }
 
-    var isEmpty: Bool {
-        marks.isEmpty
+    /// Global rects of marks currently in their fade window; the caller invalidates
+    /// these on a throttle so they dim smoothly without full-screen repaints.
+    func fadingRects() -> [NSRect] {
+        marks.compactMap { mark in
+            let fadeStart = Int(Double(life(of: mark.kind)) * 0.75)
+            return tick - mark.birth > fadeStart ? rect(for: mark) : nil
+        }
     }
 
     func clear() {
@@ -120,19 +142,37 @@ final class LitterView: NSView {
         false
     }
 
-    override func draw(_: NSRect) {
+    /// Invalidate a global-coordinate rect, mapped into this view's local space, so
+    /// only the changed patch repaints instead of the whole overlay.
+    func invalidateGlobal(_ globalRect: NSRect) {
+        setNeedsDisplay(NSRect(x: globalRect.minX - originOffset.x,
+                               y: globalRect.minY - originOffset.y,
+                               width: globalRect.width, height: globalRect.height))
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        // Clear only the invalidated patch (not the full multi-screen bounds), then
+        // repaint just the marks that overlap it. AppKit clips drawing to dirtyRect.
         NSColor.clear.setFill()
-        bounds.fill(using: .copy)
+        dirtyRect.fill(using: .copy)
         guard let field, let ctx = NSGraphicsContext.current?.cgContext else { return }
+        let r = LitterField.markRadius
         for mark in field.marks {
-            let a = field.alpha(of: mark)
             let p = NSPoint(x: mark.pos.x - originOffset.x, y: mark.pos.y - originOffset.y)
+            let box = NSRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2)
+            guard box.intersects(dirtyRect) else { continue }
+            let a = field.alpha(of: mark)
             switch mark.kind {
             case .paw: Self.drawPaw(ctx, at: p, angle: mark.angle, alpha: a)
             case .scratch: Self.drawScratch(ctx, at: p, angle: mark.angle, alpha: a)
             }
         }
     }
+
+    // Base colors cached once; per-mark opacity is applied with ctx.setAlpha so no
+    // NSColor/CGColor is allocated per mark per frame.
+    private static let pawColor = NSColor(calibratedWhite: 0.12, alpha: 0.5).cgColor
+    private static let scratchColor = NSColor(calibratedWhite: 0.1, alpha: 0.45).cgColor
 
     /// A paw print: one big pad plus four toe beans, drawn pointing +y then rotated
     /// so it points along the direction of travel.
@@ -141,7 +181,8 @@ final class LitterView: NSView {
         defer { ctx.restoreGState() }
         ctx.translateBy(x: p.x, y: p.y)
         ctx.rotate(by: angle - .pi / 2) // shape points +y; align +y with travel
-        ctx.setFillColor(NSColor(calibratedWhite: 0.12, alpha: 0.5 * alpha).cgColor)
+        ctx.setAlpha(alpha) // scales the cached color's alpha (0.5) → 0.5 * alpha
+        ctx.setFillColor(pawColor)
         let s: CGFloat = 1.2
         ctx.fillEllipse(in: CGRect(x: -5 * s, y: -6 * s, width: 10 * s, height: 8 * s))
         let toes = [CGPoint(x: -5, y: 3), CGPoint(x: -2, y: 6.5), CGPoint(x: 2, y: 6.5), CGPoint(x: 5, y: 3)]
@@ -157,7 +198,8 @@ final class LitterView: NSView {
         defer { ctx.restoreGState() }
         ctx.translateBy(x: p.x, y: p.y)
         ctx.rotate(by: angle)
-        ctx.setStrokeColor(NSColor(calibratedWhite: 0.1, alpha: 0.45 * alpha).cgColor)
+        ctx.setAlpha(alpha) // scales the cached color's alpha (0.45) → 0.45 * alpha
+        ctx.setStrokeColor(scratchColor)
         ctx.setLineWidth(1.6)
         ctx.setLineCap(.round)
         let len: CGFloat = 16
